@@ -22,13 +22,13 @@ nyquist_f = 26.56e9
 nyquist_T = 1/nyquist_f
 
 #desired number of samples per clock period
-n = 64
+oversampling_ratio = 64
 
 #timesteps per bit
-steps_per_symbol = int(round(n/2))
+steps_per_symbol = int(round(oversampling_ratio/2))
 
 #Desired time-step
-t_d = nyquist_T/n
+t_d = nyquist_T/oversampling_ratio
 
 #compute response of zero-padded TF
 H, f, h, t = sdp.zero_pad(H,f,t_d)
@@ -56,7 +56,7 @@ signal_output = signal_output[0:h_zero_pad.size]
 sig = sdp.Receiver(signal_output[5000:], steps_per_symbol, t[1], voltage_levels)
 
 
-#%% meauure precursor and postcursor from pulse response
+#%% measure precursor and postcursor from pulse response
 
 n_taps_post = 3
 n_taps_pre = 1

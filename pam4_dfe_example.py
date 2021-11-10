@@ -22,13 +22,13 @@ nyquist_f = 26.56e9/2
 nyquist_T = 1/nyquist_f
 
 #desired number of samples per clock period
-n = 64
+oversampling_ratio = 64
 
 #timesteps per bit
-steps_per_symbol = int(round(n/2))
+steps_per_symbol = int(round(oversampling_ratio/2))
 
 #Desired time-step
-t_d = nyquist_T/n
+t_d = nyquist_T/oversampling_ratio
 
 #compute response of zero-padded TF
 H, f, h, t = sdp.zero_pad(H,f,t_d)
@@ -38,12 +38,14 @@ H, f, h, t = sdp.zero_pad(H,f,t_d)
 #compute input data using PRQS10
 data_in = sdp.prqs10(1)
 
+#take first 10k bits for faster simulation
+data_in = data_in[:10000]
+
 #define voltage levels for 0 and 1 bits
 voltage_levels = np.array([-0.75, -0.25, 0.25, 0.75])
 
 #convert data_in to time domain signal
 signal_in = sdp.pam4_input(steps_per_symbol, data_in, voltage_levels)
-signal_in = signal_in[:4194300]
 
 #%%compute channel response to signal_in
 
@@ -59,7 +61,7 @@ sig = sdp.Receiver(signal_output[5000:], steps_per_symbol, t[1], voltage_levels)
 
 #%% get dfe tap weights
 
-half_symbol = int(round(n/4))
+half_symbol = int(round(oversampling_ratio/4))
 
 #create pulse waveform
 pulse_input = np.hstack((np.ones(steps_per_symbol),np.zeros(t.size-steps_per_symbol)))
@@ -72,7 +74,7 @@ pulse_response = pulse_response[0:t.size]
 max_idx = np.where(pulse_response == np.amax(pulse_response))[0][0]
 
 #number of DFE taps
-n_taps = 12
+n_taps = 4
 
 dfe_tap_weights = np.zeros(n_taps)
 pc = np.zeros(n_taps)

@@ -160,6 +160,20 @@ def prbs7(seed):
         return False
 
 def prqs10(seed):
+    """Genterates PRQS10 sequence
+
+    Parameters
+    ----------
+    seed : int
+        seed used to generate sequence
+        should be greater than 0 and less than 2^20
+
+    Returns
+    -------
+    array:
+        PRQS10 sequence
+    """
+    
     a = prbs20(seed)
     shift = int((2**20-1)/3)
     b = np.hstack((a[shift:],a[:shift]))

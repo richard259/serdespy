@@ -22,13 +22,13 @@ nyquist_f = 26.56e9
 nyquist_T = 1/nyquist_f
 
 #desired number of samples per clock period
-n = 64
+oversampling_ratio = 64
 
 #timesteps per bit
-steps_per_symbol = int(round(n/2))
+steps_per_symbol = int(round(oversampling_ratio/2))
 
 #Desired time-step
-t_d = nyquist_T/n
+t_d = nyquist_T/oversampling_ratio
 
 #compute response of zero-padded TF
 H, f, h, t = sdp.zero_pad(H,f,t_d)
@@ -46,15 +46,13 @@ signal_in = sdp.nrz_input(steps_per_symbol, data_in, voltage_levels)
 
 #%%compute channel response to signal_in
 
-#TODO: figure out convolution with different length vectors
-
 h_zero_pad = np.hstack((h, np.zeros(signal_in.size-h.size)))
 
 #do convolution to get differential channel response
 signal_output = sp.signal.fftconvolve(h_zero_pad, signal_in)
 signal_output = signal_output[0:h_zero_pad.size]
 
-#define signal object for this signal, crop out first bit of signal which is 0 due to channel latency
+#define Reciever object for this signal at the RX, crop out first few ns of signal
 
 sig = sdp.Receiver(signal_output[5000:], steps_per_symbol, t[1], voltage_levels)
 
@@ -66,7 +64,6 @@ BER = np.zeros(50)
 for i in range(noise_levels.size):
     sig.noise(noise_levels[i])
     data = sdp.nrz_a2d(sig.signal, steps_per_symbol, 0)
-   # print(sdp.prbs_checker(20,data_in, data))
     BER[i] = (sdp.prbs_checker(13,data_in, data)[0])/data.size
 
 #plot BER vs noise level
@@ -76,7 +73,6 @@ plt.xlabel("noise stdev [V]")
 plt.ylabel("BER")
 plt.title("BER vs. RX noise stdev")
 #%%plot eye diagrams of signal with different levels of noise
-
 sig.signal = np.copy(sig.signal_org)
 sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagram - 26.56GHz - No Noise")
 
@@ -88,7 +84,7 @@ sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagra
 
 #%%Estimate DFE tap weights from pulse response
 
-half_symbol = int(round(n/4))
+half_symbol = int(round(oversampling_ratio/4))
 
 #create pulse waveform
 pulse_input = np.hstack((np.ones(steps_per_symbol),np.zeros(t.size-steps_per_symbol)))
