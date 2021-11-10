@@ -4,10 +4,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-#TODO: make better eye diagram plotter 
-
 def simple_eye(signal, window_len, ntraces, tstep, title):
-    """Genterates PRBS31 sequence
+    """Genterates simple eye diagram
 
     Parameters
     ----------
@@ -34,7 +32,7 @@ def simple_eye(signal, window_len, ntraces, tstep, title):
     
     plt.figure()
     for i in range(ntraces):
-        plt.plot(t*1e12,np.reshape((traces[i][:]),window_len))
+        plt.plot(t*1e12,np.reshape((traces[i][:]),window_len), color = 'blue', linewidth = 0.15)
         plt.title(title)
         plt.xlabel('[ps]')
         plt.ylabel('[V]')

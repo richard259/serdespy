@@ -2,18 +2,19 @@
 
 """
 
-from serdespy.chmodel import *
+from .chmodel import *
 import numpy as np
 import skrf as rf
 import scipy as sp
+import matplotlib.pyplot as plt
 
-class Signal:
+class Receiver:
     """Class to represent time domain signal at reciever
 
 
     """
     
-    def __init__(self, signal, steps_per_symbol, t_step, voltage_levels, crop = True):
+    def __init__(self, signal, steps_per_symbol, t_step, voltage_levels, shift = True):
         #self.signal_org = np.copy(signal)
         self.steps_per_symbol = steps_per_symbol
         self.t_step = t_step
@@ -23,20 +24,23 @@ class Signal:
         self.baud_rate = 1/self.t_symbol
         self.frequency = 1/(2*self.t_symbol)
         
-        if (crop):
+        if (shift):
         #shift signal so that every index i*steps_per_symbol is the index at wich to slice the signal
-            self.signal_org = slicer(np.copy(signal), steps_per_symbol)
+            self.signal_org = shift_signal(np.copy(signal), steps_per_symbol)
         
         else:
             self.signal_org = np.copy(signal)
         
         
         self.signal = np.copy(self.signal_org)
-        
+    
+    def reset(self):
+        self.signal = np.copy(self.signal_org)
+    
     def noise(self, stdev):
         self.signal = np.copy(self.signal_org) + np.random.normal(scale=stdev, size = self.signal_org.size)
         
-    def DFE(self, tap_weights,threshold):
+    def nrz_DFE(self, tap_weights):
         
         signal_out =  np.copy(self.signal)
         n_taps = tap_weights.size
@@ -48,11 +52,11 @@ class Signal:
             
             idx = symbol_idx*self.steps_per_symbol
             
-            #decide on value of current bit and update taps
-            if signal_out[idx] < threshold:
-                taps = np.hstack((self.voltage_levels[0], taps[:-1]))
-            else:
-                taps = np.hstack((self.voltage_levels[1], taps[:-1]))
+            #decide on value of current bit
+            symbol = nrz_decision(signal_out[idx],self.voltage_levels)
+            
+            #update_taps
+            taps = np.hstack((self.voltage_levels[symbol], taps[:-1]))
             
             #apply feedback to signal
             feedback = np.sum(taps*tap_weights)
@@ -62,82 +66,76 @@ class Signal:
             
         self.signal = signal_out
         
-    def dfe_with_precursor(self, tap_weights,n_taps_pre,threshold):
+    def pam4_DFE(self, tap_weights):
         
         signal_out =  np.copy(self.signal)
-        
+        n_taps = tap_weights.size
         n_symbols = int(round(self.signal.size/self.steps_per_symbol))
         half_symbol = int(round(self.steps_per_symbol/2))
-                
-        taps = np.zeros(tap_weights.size)
+        taps = np.zeros(n_taps)
         
-        for symbol_idx in range(n_taps_pre,n_symbols-n_taps_pre):
+        for symbol_idx in range(n_symbols-1):
             
-            idx_main = symbol_idx*self.steps_per_symbol
-            idx_pre = (symbol_idx-n_taps_pre)*self.steps_per_symbol
+            idx = symbol_idx*self.steps_per_symbol
             
-            #decide on value of current bit and update taps
-            if signal_out[idx_main] < threshold:
-                taps = np.hstack((self.voltage_levels[0], taps[:-1]))
-            else:
-                taps = np.hstack((self.voltage_levels[1], taps[:-1]))
+            #decide on value of current bit 
+            symbol = pam4_decision(signal_out[idx],self.voltage_levels)
+            
+            #update taps
+            taps = np.hstack((self.voltage_levels[symbol], taps[:-1]))
             
             #apply feedback to signal
             feedback = np.sum(taps*tap_weights)
 
-            signal_out[idx_pre-half_symbol:idx_pre+self.steps_per_symbol-half_symbol] -= feedback
+            signal_out[idx+half_symbol:idx+self.steps_per_symbol+half_symbol] -= feedback
 
-            
-        self.signal_eq = signal_out
+        self.signal = signal_out
         
     def FFE(self,tap_weights, n_taps_pre):
         
-        #equalized signal
-        signal_out =  np.copy(self.signal)
-        
         n_taps = tap_weights.size
                 
-        taps = np.zeros(n_taps)
+        tap_filter = np.zeros((n_taps-1)*self.steps_per_symbol+1)
         
-        #create vector that has offset from main cursor for each tap
-        taps_offset = np.zeros(n_taps)
+        
+        
         for i in range(n_taps):
-            taps_offset[i] = (i-n_taps_pre)*self.steps_per_symbol
-        
-       # taps_offset = int(taps_offset)
-        taps_offset = taps_offset.astype(int)
-        
-        #print(taps_offset)
-        
-        #apply FFE to each element in signal vector
-        for idx in range(signal_out.size):
+            tap_filter[i*self.steps_per_symbol] = tap_weights[i]
             
-            #fill in taps
-            for tap in range(tap_weights.size):
-                
-                #if at beginning or end of signal, pad taps with 0s
-                if (idx+taps_offset[tap]<0) or ((idx+taps_offset[tap])>=self.signal.size):
-                    taps[tap] = 0
-                    
-                else:
-                
-                #fill in tap values
-                #print(tap,idx,taps_offset[tap])
-                
-                    taps[tap] = signal_out[idx+taps_offset[tap]]
+        #print(tap_filter)
+        
+        length = self.signal.size
+        self.signal = np.convolve(self.signal,tap_filter)
+        #shift = round((n_taps_pre-n_taps)*self.steps_per_symbol)
+        self.signal = self.signal[n_taps_pre*self.steps_per_symbol:n_taps_pre*self.steps_per_symbol+length]
+        
+            
+def pam4_decision(x,voltage_levels):
+    l = (voltage_levels[0]+voltage_levels[1])/2
+    m = (voltage_levels[1]+voltage_levels[2])/2
+    h = (voltage_levels[2]+voltage_levels[3])/2
+    
+    if x<l:
+        return 0
+    elif x<m:
+        return 1
+    elif x<h:
+        return 2
+    else:
+        return 3
 
-            #calculate adjustment to current idx
-            adjust  = np.sum(taps*tap_weights)
-            
-            #apply adjustment to signal
-            signal_out[idx] += adjust
-            
-        self.signal = signal_out
-            
-        
+def nrz_decision(x,voltage_levels):
+    threshold = (voltage_levels[0]+voltage_levels[1])/2
+    
+    if x<threshold:
+        return 0
+    else:
+        return 1
+
+
 def nrz_input(steps_per_symbol, data_in, voltage_levels):
     
-    """Genterates NRZ (PAM-2) transmitter waveform from binary sequence
+    """Genterates  ideal, square, NRZ (PAM-2) transmitter waveform from binary sequence
 
     Parameters
     ----------
@@ -157,30 +155,101 @@ def nrz_input(steps_per_symbol, data_in, voltage_levels):
     
     length: float
         timestep of time domain signal
+    
+    Returns
+    -------
+    signal: array
+        square waveform at trasmitter corresponding to data_in
 
     """
     
     signal = np.zeros(steps_per_symbol*data_in.size)
     
     for i in range(data_in.size):
-        if i==0:
-            if (data_in[0]==0):
-                signal[i*steps_per_symbol:(i+1)*steps_per_symbol] = np.ones(steps_per_symbol)*voltage_levels[0]
-            else:
-                signal[i*steps_per_symbol:(i+1)*steps_per_symbol]  = np.ones(steps_per_symbol)*voltage_levels[1]
+        if (data_in[i] == 0):
+            signal[i*steps_per_symbol:(i+1)*steps_per_symbol] = np.ones(steps_per_symbol)*voltage_levels[0]
+        elif(data_in[i] == 1):
+            signal[i*steps_per_symbol:(i+1)*steps_per_symbol]  = np.ones(steps_per_symbol)*voltage_levels[1]
         else:
-            if (data_in[i]==0):
-                signal[i*steps_per_symbol:(i+1)*steps_per_symbol] = np.ones(steps_per_symbol)*voltage_levels[0]
-            else:
-                signal[i*steps_per_symbol:(i+1)*steps_per_symbol] = np.ones(steps_per_symbol)*voltage_levels[1]
-        if (i%100000 == 0):
-            print('i=',i)
+            print('unexpected symbol in data_in')
+            return False
+            
+        #if (i%100000 == 0):
+         #   print('i=',i)
+    
+    return signal
+
+def pam4_input(steps_per_symbol, data_in, voltage_levels):
+    
+    """Genterates ideal, square, PAM-4 transmitter waveform from binary sequence
+
+    Parameters
+    ----------
+    steps_per_symbol: int
+        timesteps per bit
+    
+    length: int
+        length of desired time-domain signal
+    
+    data_in: array
+        binary sequence to input, must be longer than than length/steps_per_symbol
+    
+    voltage levels: array
+        definition of voltages corresponding to 0 and 1. 
+        voltage_levels[0] = voltage corresponding to 0 symbol, 
+        voltage_levels[1] = voltage corresponding to 1 symbol
+        voltage_levels[2] = voltage corresponding to 2 symbol
+        voltage_levels[3] = voltage corresponding to 3 symbol
+    
+    length: float
+        timestep of time domain signal
+    
+    Returns
+    -------
+    signal: array
+        square waveform at trasmitter corresponding to data_in
+
+    """
+    
+    signal = np.zeros(steps_per_symbol*data_in.size)
+    
+    for i in range(data_in.size):
+        if (data_in[i]==0):
+            signal[i*steps_per_symbol:(i+1)*steps_per_symbol] = np.ones(steps_per_symbol)*voltage_levels[0]
+        elif (data_in[i]==1):
+            signal[i*steps_per_symbol:(i+1)*steps_per_symbol] = np.ones(steps_per_symbol)*voltage_levels[1]
+        elif (data_in[i]==2):
+            signal[i*steps_per_symbol:(i+1)*steps_per_symbol] = np.ones(steps_per_symbol)*voltage_levels[2]
+        elif (data_in[i]==3):
+            signal[i*steps_per_symbol:(i+1)*steps_per_symbol] = np.ones(steps_per_symbol)*voltage_levels[3]
+        else:
+            print('unexpected symbol in data_in')
+            return False
+
+        #if (i%100000 == 0):
+        #    print('i=',i)
     
     return signal
 
 #TODO: comment functions below
 
-def slicer(signal, steps_per_symbol):
+def shift_signal(signal, steps_per_symbol):
+    """Shifts signal vector so that 0th element is at centre of eye, heuristic
+
+    Parameters
+    ----------
+    signal: array
+        signal vector at RX
+        
+    steps_per_symbol: int
+        number of timesteps per one bit
+    
+    Returns
+    -------
+    array
+        signal shifted so that 0th element is at centre of eye
+
+    """
     
     #Loss function evaluated at each step from 0 to steps_per_signal
     loss_vec = np.zeros(steps_per_symbol)
@@ -202,7 +271,26 @@ def slicer(signal, steps_per_symbol):
 
 
 def nrz_a2d(signal, steps_per_symbol, threshold):
+    """slices signal and compares to threshold to convert analog signal vector to binary sequence
+        signal is sampled at indeicies that are multiples of steps_per_symbol
+
+    Parameters
+    ----------
+    signal: array
+        signal vector at RX
+        
+    steps_per_symbol: int
+        number of timesteps per one bit
+        
+    threshold: float
+        threshold voltage to decide if bit is 1 or 0
     
+    Returns
+    -------
+    data : array
+        binary sequence generated from signal
+
+    """
     data = np.zeros(int(signal.size/steps_per_symbol), dtype = np.uint8)
     
     for i in range(data.size):
@@ -212,3 +300,47 @@ def nrz_a2d(signal, steps_per_symbol, threshold):
             data[i] = 0
             
     return data
+
+def channel_coefficients(pulse_response, t, steps_per_symbol, n_precursors, n_postcursors):
+
+    n_cursors = n_precursors + n_postcursors + 1
+    channel_coefficients = np.zeros(n_cursors)
+    
+    t_vec = np.zeros(n_cursors)
+    xcoords = []
+    half_symbol = int(round(steps_per_symbol/2))
+    
+    #find peak of pulse response
+    max_idx = np.where(pulse_response == np.amax(pulse_response))[0][0]
+    
+    
+    for cursor in range(n_cursors):
+        
+        a = cursor - n_precursors
+        
+        channel_coefficients[cursor] = pulse_response[max_idx+a*steps_per_symbol]
+        
+        #for plotting
+        xcoords = xcoords + [1e9*t[max_idx+a*steps_per_symbol-half_symbol]]
+        t_vec[a+n_precursors] = t[max_idx + a*steps_per_symbol]
+    xcoords = xcoords + [1e9*t[max_idx+(n_postcursors+1)*steps_per_symbol-half_symbol]]
+    
+    
+    #plot pulse response and cursor samples
+    plt.figure()
+    plt.plot(t_vec*1e9, channel_coefficients, 'o',label = 'Cursor samples')
+    plt.plot(t*1e9,pulse_response, label = 'Pulse Response')
+    plt.xlabel("Time [ns]")
+    plt.ylabel("[V]")
+    
+    ll = t[max_idx-steps_per_symbol*(n_precursors+2)]*1e9
+    ul = t[max_idx+steps_per_symbol*(n_postcursors+2)]*1e9
+    
+    print(ll,ul)
+    plt.xlim([ll,ul])
+    plt.title("Tap Weight Estimation From Pulse Response")
+    plt.legend()
+    for xc in xcoords:
+        plt.axvline(x=xc,color = 'grey')
+    
+    return channel_coefficients
