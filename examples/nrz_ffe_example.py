@@ -92,7 +92,7 @@ sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagra
 #with FFE and computed weights
 sig.reset()
 sig.FFE(ffe_tap_weights,1)
-sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagram with FFE - 26.56GHz - No Noise")
+sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "NRZ Eye, 53Gbit/s with FFE (1 Tap Precursor, 3 Taps Postcursor)")
 #%% eye diagrams with FFE and noise
 
 sig.noise(0.01)

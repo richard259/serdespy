@@ -1,4 +1,4 @@
-"""Example of PAM-4 operation with FFE"""
+"""Example of PAM-4 operation with DFE"""
 
 import serdespy as sdp
 import skrf as rf
@@ -59,33 +59,48 @@ signal_output = signal_output[0:h_zero_pad.size]
 sig = sdp.Receiver(signal_output[5000:], steps_per_symbol, t[1], voltage_levels)
 
 
-#%% measure precursor and postcursor from pulse response
+#%% get dfe tap weights
 
-n_taps_post = 2
-n_taps_pre = 1
-n_taps = n_taps_post+n_taps_pre+1
+half_symbol = int(round(oversampling_ratio/4))
 
-pulse_input = np.ones(steps_per_symbol)
+#create pulse waveform
+pulse_input = np.hstack((np.ones(steps_per_symbol),np.zeros(t.size-steps_per_symbol)))
 
-pulse_response = np.convolve(h, pulse_input,mode='same')
+#compute pulse response
+pulse_response = sp.signal.fftconvolve(h, pulse_input)
+pulse_response = pulse_response[0:t.size]
 
-channel_coefficients =  sdp.channel_coefficients(pulse_response, t, steps_per_symbol, n_taps_pre, n_taps_post) 
+#find peak of pulse response
+max_idx = np.where(pulse_response == np.amax(pulse_response))[0][0]
 
-#%% solve for zero-forcing FFE tap weights
-    
-A = np.zeros((n_taps,n_taps))
+#number of DFE taps
+n_taps = 4
 
+dfe_tap_weights = np.zeros(n_taps)
+pc = np.zeros(n_taps)
+xcoords = []
+
+#Estimate tap weights based on average value of each postcursor
 for i in range(n_taps):
-    A += np.diag(np.ones(n_taps-abs(i-n_taps_pre))*channel_coefficients[i],(n_taps_pre-i) )
+    xcoords = xcoords + [max_idx-half_symbol+i*steps_per_symbol]
+    dfe_tap_weights[i] = np.average(pulse_response[max_idx+half_symbol+(i)*steps_per_symbol:max_idx+half_symbol+(i+1)*steps_per_symbol])
+    pc[i] = max_idx +(i+1)*steps_per_symbol
+xcoords = xcoords + [max_idx+half_symbol+i*steps_per_symbol]
 
-c = np.zeros((n_taps,1))
-c[n_taps_pre] = 1
 
-b = np.linalg.inv(A)@c
+#plot pulse response and tap weights
+#print(tap_weights)
+plt.figure()
+plt.plot(np.linspace(int((pc[0])-150),int(pc[-1]),int(pc[-1]-pc[0]+151)),pulse_response[int(pc[0])-150:int(pc[-1]+1)],label = 'Pulse Response')
+plt.plot(pc, dfe_tap_weights, 'o',label = 'Tap Weights')
+plt.xlabel("Time [s]")
+plt.ylabel("impulse response [V]")
+plt.title("Tap Weight Estimation From Pulse Response")
+plt.legend()
+for xc in xcoords:
+    plt.axvline(x=xc,color = 'grey')
 
-b = b/np.sum(abs(b))
 
-ffe_tap_weights = b.T[0]
 #%% plot eye diagrams with FFE 
 
 #no FFE
@@ -94,5 +109,8 @@ sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagra
 
 #with FFE and computed weights
 sig.reset()
-sig.FFE(ffe_tap_weights,1)
-sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagram with FFE")
+sig.pam4_DFE(dfe_tap_weights)
+sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "PAM-4 Eye, 53 Gbit/s with 4-Tap DFE")
+
+#%%%%
+

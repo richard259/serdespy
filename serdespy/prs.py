@@ -1,4 +1,4 @@
-"""Functions for Pseudo-Random Binary Sequences
+"""Functions for Pseudo-Random Sequences
 
 """
 
@@ -44,6 +44,61 @@ def prbs31(seed):
         print ("error, PRBS sequence did not complete")
         return False
 
+def prbs24(seed):
+
+    if (type(seed)!= int) or (seed>2**22) or (seed < 1):
+        print("seed must be positive int less than 2^26")
+        return False
+    
+    code = seed
+    seq = np.zeros(2**24-1, dtype=np.uint8)
+    i = 0
+    sequence_complete = False
+    
+    while(i<2**24):
+        next_bit = ((code>>23) ^ (code>>22)^(code>>21)^(code>>16)) & 0x000001
+        code = ((code<<1) | next_bit) & 0xffffff
+        seq[i] = next_bit
+        i = i+1
+        if (i%1e6 ==0):
+            print("i =", i)
+        if (code==seed):
+            sequence_complete = True
+            break
+        
+    if sequence_complete:
+        return seq
+    else:
+        print ("error, PRBS sequence did not complete")
+        return False
+
+def prbs22(seed):
+
+    if (type(seed)!= int) or (seed>2**22) or (seed < 1):
+        print("seed must be positive int less than 2^26")
+        return False
+    
+    code = seed
+    seq = np.zeros(2**22-1, dtype=np.uint8)
+    i = 0
+    sequence_complete = False
+    
+    while(i<2**22):
+        next_bit = ((code>>21) ^ (code>>20)) & 0x000001
+        code = ((code<<1) | next_bit) & 0x3fffff
+        seq[i] = next_bit
+        i = i+1
+        if (i%1e6 ==0):
+            print("i =", i)
+        if (code==seed):
+            sequence_complete = True
+            break
+        
+    if sequence_complete:
+        return seq
+    else:
+        print ("error, PRBS sequence did not complete")
+        return False
 
 def prbs20(seed):
     """Genterates PRBS20 sequence
@@ -106,7 +161,7 @@ def prbs13(seed):
     i = 0
     sequence_complete = False
     
-    while(i<2**20):
+    while(i<2**13):
         next_bit = ((code>>12) ^ (code>>11) ^ (code>>1) ^ (code) ) & 0x00001
         code = ((code<<1) | next_bit) & 0x1fff
         seq[i] = next_bit
@@ -187,6 +242,24 @@ def prqs10(seed):
     
     return pqrs
 
+
+def prqs12(seed):
+    
+    a = prbs24(seed)
+    shift = int((2**24-1)/3)
+    b = np.hstack((a[shift:],a[:shift]))
+    
+    c = np.vstack((a,b))
+
+    pqrs = np.zeros(a.size,dtype = np.uint8)
+    
+    for i in range(a.size):
+        if (i%1e5 == 0):
+            print("i =", i)
+        pqrs[i] = grey_code(c[:,i])
+    
+    return pqrs
+
 def natural_code(x):
     if (x[0] == 0):
         if (x[1] == 0):
@@ -261,6 +334,9 @@ def prbs_checker(n, prbs, data):
         if (data[i] != prbs[(start_idx+i)%(2**n-1)]):
             error_count = error_count+1
             error_idx = error_idx + [i]
+        if (i==1000) and (error_count>333):
+            print ("Either error in first n bits of data, or too many errors in data (more than 1/3 or bits are errors)")
+            return False
     
     return [error_count, error_idx]
 
@@ -310,7 +386,11 @@ def prqs_checker(n, prqs, data):
     
     for i in range(data.size):
         if (data[i] != prqs[(start_idx+i)%(2**(n*2)-1)]):
-            error_count = error_count+1
+            if (abs(data[i]-prqs[(start_idx+i)%(2**(n*2)-1)]) == 2):
+                print('2 errors')
+                error_count = error_count+2
+            else:
+                error_count = error_count+1
             error_idx = error_idx + [i]
     
     return [error_count, error_idx]

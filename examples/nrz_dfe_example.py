@@ -74,7 +74,7 @@ plt.ylabel("BER")
 plt.title("BER vs. RX noise stdev")
 #%%plot eye diagrams of signal with different levels of noise
 sig.signal = np.copy(sig.signal_org)
-sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagram - 26.56GHz - No Noise")
+sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "NRZ Eye, 53Gbit/s")
 
 sig.noise(0.01)
 sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagram - 26.56GHz - RX Noise with stdev = 0.01 V")
@@ -147,7 +147,7 @@ plt.title("BER vs. RX noise stdev with DFE")
 
 sig.signal = np.copy(sig.signal_org)
 sig.nrz_DFE(tap_weights)
-sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagram with DFE - 26.56GHz - No Noise")
+sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "NRZ Eye, 53Gbit/s with 8-Tap DFE")
 
 sig.noise(0.01)
 sig.nrz_DFE(tap_weights)

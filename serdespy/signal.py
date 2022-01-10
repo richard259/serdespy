@@ -35,12 +35,29 @@ class Receiver:
         self.signal = np.copy(self.signal_org)
     
     def reset(self):
+        """Resets Signal to original (unequalized, no noise) signal"""
+    
         self.signal = np.copy(self.signal_org)
     
     def noise(self, stdev):
+        """Adds 0-mean gaussian noise to signal
+    
+        Parameters
+        ----------
+        stdev : float
+            standard deviation of noise
+        """
+    
         self.signal = np.copy(self.signal_org) + np.random.normal(scale=stdev, size = self.signal_org.size)
         
     def nrz_DFE(self, tap_weights):
+        """Behavioural model of DFE for NRZ signal. Input signal is self.signal, this method modifies self.signal
+    
+        Parameters
+        ----------
+        tap_weights: array
+            DFE tap weights
+        """
         
         signal_out =  np.copy(self.signal)
         n_taps = tap_weights.size
@@ -67,6 +84,13 @@ class Receiver:
         self.signal = signal_out
         
     def pam4_DFE(self, tap_weights):
+        """Behavioural model of DFE for PAM-4 signal. Input signal is self.signal, this method modifies self.signal.
+    
+        Parameters
+        ----------
+        tap_weights: array
+            DFE tap weights
+        """
         
         signal_out =  np.copy(self.signal)
         n_taps = tap_weights.size
@@ -75,7 +99,8 @@ class Receiver:
         taps = np.zeros(n_taps)
         
         for symbol_idx in range(n_symbols-1):
-            
+            if (symbol_idx%10000 == 0):
+                print('i=',symbol_idx)
             idx = symbol_idx*self.steps_per_symbol
             
             #decide on value of current bit 
@@ -91,7 +116,44 @@ class Receiver:
 
         self.signal = signal_out
         
+        
+    def pam4_DFE_BR(self, tap_weights):
+        
+        signal_out =  np.copy(self.signal)
+        n_taps = tap_weights.size
+        n_symbols = int(round(self.signal.size/self.steps_per_symbol))
+        #half_symbol = int(round(self.steps_per_symbol/2))
+        taps = np.zeros(n_taps)
+        
+        for symbol_idx in range(n_symbols-1):
+            if (symbol_idx%10000 == 0):
+                print('i=',symbol_idx)
+            idx = symbol_idx*self.steps_per_symbol
+            
+            #decide on value of current bit 
+            symbol = pam4_decision(signal_out[idx],self.voltage_levels)
+            
+            #update taps
+            taps = np.hstack((self.voltage_levels[symbol], taps[:-1]))
+            
+            #apply feedback to signal
+            feedback = np.sum(taps*tap_weights)
+
+            signal_out[idx+1] -= feedback
+
+        self.signal = signal_out
+        
     def FFE(self,tap_weights, n_taps_pre):
+        """Behavioural model of FFE. Input signal is self.signal, this method modifies self.signal
+    
+        Parameters
+        ----------
+        tap_weights: array
+            DFE tap weights
+            
+        n_taps_pre: int
+            number of precursor taps
+        """
         
         n_taps = tap_weights.size
                 
@@ -109,6 +171,39 @@ class Receiver:
         #shift = round((n_taps_pre-n_taps)*self.steps_per_symbol)
         self.signal = self.signal[n_taps_pre*self.steps_per_symbol:n_taps_pre*self.steps_per_symbol+length]
         
+    def CTLE(self, b,a,f):
+                
+        """Behavioural model of continuous-time linear equalizer (CTLE). Input signal is self.signal, this method modifies self.signal
+    
+        Parameters
+        ----------
+        
+        b: array
+            coefficients in numerator of ctle transfer function
+        a: array
+            coefficients in denomenator of ctle transfer function
+    
+        """
+            
+        #create freqency vector in rad/s
+        w = f/(2*np.pi)
+        
+        #compute Frequency response of CTLE at frequencies in w vector
+        w, H_ctle = sp.signal.freqs(b, a, w)
+        
+        #convert to impulse response
+        h_ctle, t_ctle = freq2impulse(H_ctle,f)
+        
+        #check that time_steps match
+        if ((t_ctle[1]-self.t_step)/self.t_step>1e-9):
+            print("Invalid f vector, need length(f)/f[1] = ", self.t_step)
+            return False
+        
+        #convolve signal with impulse response of CTLE
+        signal_out = sp.signal.fftconvolve(self.signal, h_ctle[:100], mode = 'same')
+        
+        self.signal = np.copy(signal_out)
+    
             
 def pam4_decision(x,voltage_levels):
     l = (voltage_levels[0]+voltage_levels[1])/2
@@ -226,8 +321,8 @@ def pam4_input(steps_per_symbol, data_in, voltage_levels):
             print('unexpected symbol in data_in')
             return False
 
-        #if (i%100000 == 0):
-        #    print('i=',i)
+        if (i%100000 == 0):
+            print('i=',i)
     
     return signal
 
@@ -301,6 +396,34 @@ def nrz_a2d(signal, steps_per_symbol, threshold):
             
     return data
 
+def pam4_a2d(signal, steps_per_symbol, voltage_levels):
+    """slices signal and compares to voltage_levelsto convert analog signal vector to binary sequence
+        signal is sampled at indeicies that are multiples of steps_per_symbol
+
+    Parameters
+    ----------
+    signal: array
+        signal vector at RX
+        
+    steps_per_symbol: int
+        number of timesteps per one bit
+        
+    voltage_levels: array
+    
+    Returns
+    -------
+    data : array
+        binary sequence generated from signal
+
+    """
+    data = np.zeros(int(signal.size/steps_per_symbol), dtype = np.uint8)
+    
+    for i in range(data.size):
+        data[i] = pam4_decision(signal[i*steps_per_symbol],voltage_levels)
+            
+    return data
+
+
 def channel_coefficients(pulse_response, t, steps_per_symbol, n_precursors, n_postcursors):
 
     n_cursors = n_precursors + n_postcursors + 1
@@ -336,11 +459,11 @@ def channel_coefficients(pulse_response, t, steps_per_symbol, n_precursors, n_po
     ll = t[max_idx-steps_per_symbol*(n_precursors+2)]*1e9
     ul = t[max_idx+steps_per_symbol*(n_postcursors+2)]*1e9
     
-    print(ll,ul)
+    #print(ll,ul)
     plt.xlim([ll,ul])
-    plt.title("Tap Weight Estimation From Pulse Response")
+    plt.title("Channel Coefficients")
     plt.legend()
     for xc in xcoords:
-        plt.axvline(x=xc,color = 'grey')
+        plt.axvline(x=xc,color = 'grey',label ='UIs')
     
     return channel_coefficients
