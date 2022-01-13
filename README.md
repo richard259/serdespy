@@ -6,13 +6,12 @@ Richard Barrie's undergraduate thesis project. University of Toronto, Engineerin
 
 python 3.7
 
-numpy
 
-scikit-rf
-
-scipy
-
-matplotlib
+uses packages
+    numpy
+    scikit-rf
+    scipy
+    matplotlib
 
 ### Description
 
