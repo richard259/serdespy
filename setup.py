@@ -28,7 +28,7 @@ setup(
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    name='SerDesPY',  # Required
+    name='serdespy',  # Required
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
@@ -147,7 +147,8 @@ setup(
         'numpy',
         'scipy',
         'matplotlib',
-        'scikit-rf']
+        'scikit-rf',
+        'samplerate']
 
 
     # List additional groups of dependencies here (e.g. development

@@ -5,6 +5,11 @@
 from serdespy.chmodel import *
 import numpy as np
 import skrf as rf
+import samplerate
+
+#ratio = input timestep/output_timestep
+#samplerate.resample(input_signal, ratio, 'sinc_best')
+    
 
 def zero_pad(H, f, t_d):
     '''Pads discrete time transfer function with zeros in to meet desired timestep in time domain

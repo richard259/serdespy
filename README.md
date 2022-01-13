@@ -1,25 +1,24 @@
 ### serdespy
 Python library for modelling SerDes. 
-Richard Barrie's undergraduate thesis project. University of Toronto, Engineering Science. ESC499 2021/2022. Supervisors: Tony Chan Causone, Ming Yang
+Richard Barrie's undergraduate thesis project. University of Toronto, Engineering Science. ESC499 2021/2022. 
+Supervisors: Tony Chan Causone, Ming Yang
+Authors: Richard Barrie, Katherine 
 
-### Prerequisites
+### Installation
 
-python 3.7
+using python 3.7, cd into directory with setup.py. use command "python setup.py install"
 
-
-uses packages
-    numpy
-    scikit-rf
-    scipy
-    matplotlib
 
 ### Description
 
-serdespy
+/serdespy
+    python module containing functions for SerDes Modelling
 
-examples
+/examples
+    example files showing functionality of serdespy package
 
-touchstone
+/touchstone
+    example touchstone files from https://www.ieee802.org/3/ck/public/tools/index.html (channel models)
 
-test_signals
-
+/test_signals
+    pre-generated PRBS signals saved in numpy arrays 
