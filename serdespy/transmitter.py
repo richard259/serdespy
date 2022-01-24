@@ -28,13 +28,13 @@ class Transmitter:
             definition of voltages corresponding to symbols. 
         
         frequency: int
-            2* symbol rate
+            2* symbol rate      
         
         """
         
         self.f = frequency
         self.T = 1/self.f
-        self.UI = self.T/2 
+        self.UI = self.T/2
         
         self.voltage_levels = voltage_levels
         self.data = data
@@ -59,7 +59,7 @@ class Transmitter:
         Parameters
         ----------
         
-        tap_weights
+        tap_weights: list
             
         
         """
@@ -133,4 +133,38 @@ class Transmitter:
         #calculate TX output waveform
         self.signal = np.copy(self.signal_ideal+non_ideal)
 
+    def tx_bandwidth(self,freq_bw = None, TF = None):
+        """Returns the bandwidth-limited version of output signal of FIR filter
+        
+        If this class is called without specifying freq_bw and/or TF, the default will be used
 
+        Parameters
+        ----------
+        freq_bw: float
+            bandwidth frequency
+
+        TF: list
+            transfer function coefficients for bandwidth-limiting 
+        """
+
+        if freq_bw is None:
+            freq_bw = self.f*2
+        if TF is None:
+            TF = ([2*np.pi*freq_bw], [1,2*np.pi*freq_bw])
+        dt = self.UI/self.samples_per_symbol
+
+        _, self.signal, _ = sp.signal.lsim((TF),self.signal,np.linspace(0,dt*len(self.signal),len(self.signal),endpoint = False))
+
+    def downsample(self,q):
+        """Downsamples the input signal by a factor of q
+
+        Parameters
+        ----------
+        q: int
+            downsample factor
+        """
+
+        self.q = q
+
+        interpolation_time = np.linspace(0,len(self.signal),len(self.signal)//self.q,endpoint=False)
+        self.signal = np.interp(interpolation_time,np.arange(len(self.signal)),self.signal)

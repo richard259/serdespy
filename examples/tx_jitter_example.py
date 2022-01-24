@@ -42,6 +42,10 @@ TX.gaussian_jitter(0.1)
 #plot eye diagram
 sdp.simple_eye(TX.signal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Eye Diagram Jitter")
 
+#%%Add bandwidth
+
+TX.tx_bandwidth()
+sdp.simple_eye(TX.signal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Eye Diagram Bandwidth")
 
 #%%create channel model impulse response
 
