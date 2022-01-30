@@ -16,7 +16,7 @@ port_def = np.array([[0, 1],[2, 3]])
 H,f,h,t = sdp.four_port_to_diff(network,port_def)
 
 #Nyquist frequency
-nyquist_f = 26.56e9*1.3
+nyquist_f = 26.56e9*1
 
 #Period of clock at nyquist frequency
 nyquist_T = 1/nyquist_f

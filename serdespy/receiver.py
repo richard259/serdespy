@@ -12,7 +12,7 @@ class Receiver:
 
     """
     
-    def __init__(self, signal, samples_per_symbol, t_step, voltage_levels, shift = True):
+    def __init__(self, signal, samples_per_symbol, t_step, voltage_levels, shift = True, main_cursor = 1):
         #self.signal_org = np.copy(signal)
         self.samples_per_symbol = samples_per_symbol
         self.t_step = t_step
@@ -21,6 +21,8 @@ class Receiver:
         self.t_symbol = self.samples_per_symbol*self.t_step
         self.baud_rate = 1/self.t_symbol
         self.frequency = 1/(2*self.t_symbol)
+        
+        self.main_cursor = main_cursor
         
         if (shift):
         #shift signal so that every index i*samples_per_symbol is the index at wich to slice the signal
@@ -124,12 +126,13 @@ class Receiver:
         taps = np.zeros(n_taps)
         
         for symbol_idx in range(n_symbols-1):
-            if (symbol_idx%10000 == 0):
-                print('i=',symbol_idx)
-            idx = symbol_idx*self.samples_per_symbol
+            #if (symbol_idx%10000 == 0):
+            #    print('i=',symbol_idx)
+                
+            #idx = symbol_idx*self.samples_per_symbol
             
             #decide on value of current bit 
-            symbol = pam4_decision(signal_out[idx],self.voltage_levels)
+            symbol = pam4_decision(signal_out[symbol_idx],self.voltage_levels*self.main_cursor)
             
             #update taps
             taps = np.hstack((self.voltage_levels[symbol], taps[:-1]))
@@ -137,7 +140,7 @@ class Receiver:
             #apply feedback to signal
             feedback = np.sum(taps*tap_weights)
 
-            signal_out[idx+1] -= feedback
+            signal_out[symbol_idx+1] -= feedback
 
         self.signal = signal_out
         

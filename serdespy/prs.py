@@ -283,9 +283,16 @@ def grey_code(x):
             return 3
         else:
             return 2
-
-
-
+        
+def grey_decode(symbol):
+    if symbol == 0 :
+        return np.array([0,0],dtype = np.uint8)
+    if symbol == 1 :
+        return np.array([0,1],dtype = np.uint8)
+    if symbol == 2 :
+        return np.array([1,1],dtype = np.uint8)
+    if symbol == 3 :
+        return np.array([1,0],dtype = np.uint8)
 
 def prbs_checker(n, prbs, data):
     """Compares array with PRBS array to check bit errors

@@ -148,7 +148,9 @@ setup(
         'scipy',
         'matplotlib',
         'scikit-rf',
-        'samplerate']
+        'samplerate',
+        'reedsolo',
+        'time']
 
 
     # List additional groups of dependencies here (e.g. development
