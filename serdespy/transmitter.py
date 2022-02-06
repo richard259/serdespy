@@ -4,6 +4,7 @@ import numpy as np
 import skrf as rf
 import scipy as sp
 import matplotlib.pyplot as plt
+import samplerate
 
 
 class Transmitter:
@@ -94,6 +95,20 @@ class Transmitter:
                 oversampled[i*self.samples_per_symbol:(i+1)*self.samples_per_symbol]=self.signal_BR[i]
         
         self.signal_ideal = oversampled
+
+    def new_oversample(self, samples_per_symbol):
+        #approach using samplerate
+        self.samples_per_symbol = samples_per_symbol
+        
+        #if we have FIR filtered data
+        if self.FIR_enable:
+            oversampled = samplerate.resample(self.signal_FIR_BR,samples_per_symbol,converter_type='zero_order_hold')
+        
+        #if we are not using FIR
+        else:
+            oversampled = samplerate.resample(self.signal_BR,samples_per_symbol,converter_type='zero_order_hold')
+        
+        self.signal_ideal = oversampled
     
     def gaussian_jitter(self, stdev_div_UI = 0.025):
         """Generates the TX waveform from ideal, square, self.signal_ideal with gaussian jitter
@@ -144,16 +159,17 @@ class Transmitter:
             bandwidth frequency
 
         TF: list
-            transfer function coefficients for bandwidth-limiting 
+            transfer function coefficients for bandwidth-limiting (Optio)
         """
 
         if freq_bw is None:
             freq_bw = self.f*2
         if TF is None:
             TF = ([2*np.pi*freq_bw], [1,2*np.pi*freq_bw])
-        dt = self.UI/self.samples_per_symbol
+        w, H = sp.signal.freqs([2*np.pi*freq_bw], [1,2*np.pi*freq_bw],np.linspace(0,2*np.pi*freq_bw*100,2000))
+        h, t = freq2impulse(H,w/(2*np.pi))
+        self.signal = sp.signal.fftconvolve(h, self.signal)
 
-        _, self.signal, _ = sp.signal.lsim((TF),self.signal,np.linspace(0,dt*len(self.signal),len(self.signal),endpoint = False))
 
     def downsample(self,q):
         """Downsamples the input signal by a factor of q
@@ -168,3 +184,8 @@ class Transmitter:
 
         interpolation_time = np.linspace(0,len(self.signal),len(self.signal)//self.q,endpoint=False)
         self.signal = np.interp(interpolation_time,np.arange(len(self.signal)),self.signal)
+
+    def new_downsample(self,q):
+        #approach using samplerate
+
+        self.signal=samplerate.resample(self.signal, 1/q, 'zero_order_hold')

@@ -7,6 +7,7 @@ import skrf as rf
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
+import time
 
 #%% set up some parameters for the transmitter waveform
 
@@ -30,7 +31,10 @@ tap_weights = np.array([-0, 1, -0.1])
 TX.FIR(tap_weights)
 
 #%%Oversample the TX waveform
+time1=time.time()
 TX.oversample(samples_per_symbol)
+time2=time.time()
+print(time2-time1)
 
 #plot eye diagram
 sdp.simple_eye(TX.signal_ideal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Eye Diagram Ideal")
@@ -46,6 +50,15 @@ sdp.simple_eye(TX.signal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol
 
 TX.tx_bandwidth()
 sdp.simple_eye(TX.signal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Eye Diagram Bandwidth")
+plt.show()
+bandwidth_output = TX.signal[0:10000]
+
+#%%Downsample
+#q = 10
+#time1=time.time()
+#TX.new_downsample(q)
+#time2=time.time()
+#print(time2-time1)
 
 #%%create channel model impulse response
 
