@@ -51,10 +51,9 @@ noise_variance = 0.03
 
 #%%
 
-noise_variances = [0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03]
+#noise_variances = [0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03]
 
-
-#noise_variances = [0.029, 0.028, 0.027, 0.026, 0.025, 0.024, 0.023, 0.022]
+noise_variances = [0.024, 0.023, 0.022]
 
 #noise_variances = [0.038, 0.035, 0.032]
 
@@ -70,11 +69,13 @@ for noise_variance in noise_variances:
         
         RX.pam4_DFE_BR(np.array([0.2,-0.2]))
         
-        symbols_out_enc = sdp.pam4_a2d(RX.signal,1,voltage_levels*0.6)
+        symbols_out_enc = RX.symbols_out
         
-        data_out_enc = np.zeros(data_in_enc.size,dtype = np.uint8)
+        #sdp.pam4_a2d(RX.signal,1,voltage_levels*0.6)
         
-        for i in range(len_symbols_enc):
+        data_out_enc = np.zeros(symbols_out_enc.size*2,dtype = np.uint8)
+        
+        for i in range(symbols_out_enc.size):
             #print(i,symbols_out[i],data_out[:10])
             data_out_enc[i*2:i*2+2] = sdp.grey_decode(symbols_out_enc[i])
         
@@ -92,7 +93,7 @@ for noise_variance in noise_variances:
         
         print("errors = ", n_errors, "n_bits = ", n_bits)
         
-        if n_errors > 200:
+        if n_errors > 400:
             print('var = ', noise_variance)
             print("Bits Transmitted =", n_bits, 'Bit Errors =', n_errors )
             print("Bit Error Ratio = ", n_errors/n_bits)

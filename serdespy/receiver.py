@@ -116,33 +116,46 @@ class Receiver:
 
         self.signal = signal_out
         
-        
+    
     def pam4_DFE_BR(self, tap_weights):
         
-        signal_out =  np.copy(self.signal)
-        n_taps = tap_weights.size
-        n_symbols = int(round(self.signal.size/self.samples_per_symbol))
-        #half_symbol = int(round(self.samples_per_symbol/2))
-        taps = np.zeros(n_taps)
-        
-        for symbol_idx in range(n_symbols-1):
-            #if (symbol_idx%10000 == 0):
-            #    print('i=',symbol_idx)
+            signal_out =  np.copy(self.signal)
+            
+            symbols_out = np.zeros(self.signal.size, dtype = np.uint8)
+            
+            n_taps = tap_weights.size
+            
+            taps = np.zeros(n_taps)
+            
+            l = self.main_cursor*((self.voltage_levels[0]+self.voltage_levels[1])/2)
+            m = self.main_cursor*((self.voltage_levels[1]+self.voltage_levels[2])/2)
+            h = self.main_cursor*((self.voltage_levels[2]+self.voltage_levels[3])/2)
+            
+            for symbol_idx in range(len(self.signal)-1):
                 
-            #idx = symbol_idx*self.samples_per_symbol
-            
-            #decide on value of current bit 
-            symbol = pam4_decision(signal_out[symbol_idx],self.voltage_levels*self.main_cursor)
-            
-            #update taps
-            taps = np.hstack((self.voltage_levels[symbol], taps[:-1]))
-            
-            #apply feedback to signal
-            feedback = np.sum(taps*tap_weights)
+                #decide on value of current bit 
+                symbols_out[symbol_idx] = self.pam4_decision_fast(signal_out[symbol_idx],l,m,h)
+                
+                #update taps            
+                taps[1:] = taps[:-1]
+                taps[0] = self.voltage_levels[symbols_out[symbol_idx]]
+                
+                #apply decision feedback to next bit
+                for i in range(n_taps):
+                    signal_out[symbol_idx+1] -= taps[i]*tap_weights[i]
 
-            signal_out[symbol_idx+1] -= feedback
-
-        self.signal = signal_out
+            self.signal = signal_out
+            self.symbols_out = symbols_out
+    
+    def pam4_decision_fast(self,x,l,m,h):
+        if x<l:
+            return 0
+        elif x<m:
+            return 1
+        elif x<h:
+            return 2
+        else:
+            return 3
         
     def FFE(self,tap_weights, n_taps_pre):
         """Behavioural model of FFE. Input signal is self.signal, this method modifies self.signal

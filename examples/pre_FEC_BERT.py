@@ -43,7 +43,7 @@ RX = sdp.Receiver(signal_out[:-2],1,1, voltage_levels, shift=False, main_cursor=
 
 #noise_variances = [0.029, 0.028, 0.027, 0.026, 0.025, 0.024, 0.023, 0.022]
 
-noise_variances = [0.038, 0.035, 0.032]
+noise_variances = [0.022]
 
 for noise_variance in noise_variances:
     
@@ -71,7 +71,7 @@ for noise_variance in noise_variances:
         
         print("errors = ", n_errors, "n_bits = ", n_bits)
         
-        if n_errors > 200:
+        if n_errors > 500:
             print('var = ', noise_variance)
             print("Bits Transmitted =", n_bits, 'Bit Errors =', n_errors )
             print("Bit Error Ratio = ", n_errors/n_bits)

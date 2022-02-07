@@ -126,7 +126,7 @@ def pam4_input(samples_per_symbol, data_in, voltage_levels):
     
     return signal
 
-#TODO: comment functions below
+#TODO: optimize for BR signal
 
 def shift_signal(signal, samples_per_symbol):
     """Shifts signal vector so that 0th element is at centre of eye, heuristic
