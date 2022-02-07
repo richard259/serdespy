@@ -4,6 +4,7 @@ import numpy as np
 import skrf as rf
 import scipy as sp
 import matplotlib.pyplot as plt
+import samplerate
 
 
 class Transmitter:
@@ -28,13 +29,13 @@ class Transmitter:
             definition of voltages corresponding to symbols. 
         
         frequency: int
-            2* symbol rate
+            2* symbol rate      
         
         """
         
         self.f = frequency
         self.T = 1/self.f
-        self.UI = self.T/2 
+        self.UI = self.T/2
         
         self.voltage_levels = voltage_levels
         self.data = data
@@ -59,7 +60,7 @@ class Transmitter:
         Parameters
         ----------
         
-        tap_weights
+        tap_weights: list
             
         
         """
@@ -92,6 +93,20 @@ class Transmitter:
             oversampled = np.zeros(len(self.signal_BR)*self.samples_per_symbol)
             for i in range(self.n_symbols):
                 oversampled[i*self.samples_per_symbol:(i+1)*self.samples_per_symbol]=self.signal_BR[i]
+        
+        self.signal_ideal = oversampled
+
+    def new_oversample(self, samples_per_symbol):
+        #approach using samplerate
+        self.samples_per_symbol = samples_per_symbol
+        
+        #if we have FIR filtered data
+        if self.FIR_enable:
+            oversampled = samplerate.resample(self.signal_FIR_BR,samples_per_symbol,converter_type='zero_order_hold')
+        
+        #if we are not using FIR
+        else:
+            oversampled = samplerate.resample(self.signal_BR,samples_per_symbol,converter_type='zero_order_hold')
         
         self.signal_ideal = oversampled
     
@@ -133,4 +148,44 @@ class Transmitter:
         #calculate TX output waveform
         self.signal = np.copy(self.signal_ideal+non_ideal)
 
+    def tx_bandwidth(self,freq_bw = None, TF = None):
+        """Returns the bandwidth-limited version of output signal of FIR filter
+        
+        If this class is called without specifying freq_bw and/or TF, the default will be used
 
+        Parameters
+        ----------
+        freq_bw: float
+            bandwidth frequency
+
+        TF: list
+            transfer function coefficients for bandwidth-limiting (Optio)
+        """
+
+        if freq_bw is None:
+            freq_bw = self.f*2
+        if TF is None:
+            TF = ([2*np.pi*freq_bw], [1,2*np.pi*freq_bw])
+        w, H = sp.signal.freqs([2*np.pi*freq_bw], [1,2*np.pi*freq_bw],np.linspace(0,2*np.pi*freq_bw*100,2000))
+        h, t = freq2impulse(H,w/(2*np.pi))
+        self.signal = sp.signal.fftconvolve(h, self.signal)
+
+
+    def downsample(self,q):
+        """Downsamples the input signal by a factor of q
+
+        Parameters
+        ----------
+        q: int
+            downsample factor
+        """
+
+        self.q = q
+
+        interpolation_time = np.linspace(0,len(self.signal),len(self.signal)//self.q,endpoint=False)
+        self.signal = np.interp(interpolation_time,np.arange(len(self.signal)),self.signal)
+
+    def new_downsample(self,q):
+        #approach using samplerate
+
+        self.signal=samplerate.resample(self.signal, 1/q, 'zero_order_hold')
