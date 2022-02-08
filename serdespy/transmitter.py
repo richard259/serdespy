@@ -49,7 +49,8 @@ class Transmitter:
         if voltage_levels.size == 2:
             self.signal_BR = nrz_input(1,data,voltage_levels)
         elif voltage_levels.size == 4:
-            self.signal_BR = pam4_input(1,data,voltage_levels)
+            #self.signal_BR = pam4_input(1,data,voltage_levels)
+            self.signal_BR = pam4_input_BR(data,voltage_levels)
         else:
             print ("Error: Voltage levels must have either size = 2 for NRZ signal or size = 4 for PAM4")
     
@@ -162,13 +163,48 @@ class Transmitter:
             transfer function coefficients for bandwidth-limiting (Optio)
         """
 
-        if freq_bw is None:
-            freq_bw = self.f*2
-        if TF is None:
-            TF = ([2*np.pi*freq_bw], [1,2*np.pi*freq_bw])
-        w, H = sp.signal.freqs([2*np.pi*freq_bw], [1,2*np.pi*freq_bw],np.linspace(0,2*np.pi*freq_bw*100,2000))
-        h, t = freq2impulse(H,w/(2*np.pi))
-        self.signal = sp.signal.fftconvolve(h, self.signal)
+        #freq_bw = 50e9
+
+        #TF = ([2*np.pi*freq_bw], [1,2*np.pi*freq_bw])
+
+        #UI = 1/(2*nyquist_f)
+            
+        dt = self.UI/self.samples_per_symbol
+
+        print(f'signal timestep is {dt}')
+
+        max_f = 1/dt
+
+        max_w = max_f/(2*np.pi)
+
+        ir_length = int(4/(freq_bw*dt))
+            
+        w, H = sp.signal.freqs([freq_bw/(2*np.pi)], [1,freq_bw/(2*np.pi)], np.linspace(0,0.5*max_w,ir_length*4))
+
+        f = np.pi*2*w
+
+        plt.figure()
+        plt.semilogx(1e-9*f,20*np.log10(abs(H)), label = "TX BW limiting TF")
+        plt.ylabel('Mag. Response [dB]')
+        plt.xlabel('Frequency [GHz]')
+        plt.title("TX BW Magnitude Bode Plot")
+        plt.grid()
+        plt.axvline(x=1e-9*freq_bw,color = 'grey')
+        #plt.axhline(x=-3,color = 'grey')
+        plt.show()
+
+
+        h, t = freq2impulse(H,f)
+
+        print(f'impulse response timestep is {t[1]}')
+        
+        plt.figure()
+        plt.plot(h[:ir_length])
+        plt.title("TX BW Impulse Response")
+        plt.show()
+        
+        print("running convolution of signal with impulse response...")
+        self.signal = sp.signal.fftconvolve(h[:ir_length], self.signal)
 
 
     def downsample(self,q):
@@ -188,4 +224,12 @@ class Transmitter:
     def new_downsample(self,q):
         #approach using samplerate
 
-        self.signal=samplerate.resample(self.signal, 1/q, 'zero_order_hold')
+        if (self.samples_per_symbol % q != 0):
+            print(r'Must downsample UI with a divisor of {self.samples_per_symbol}')
+            return False
+        
+        self.samples_per_symbol = int(self.samples_per_symbol/q)
+        
+        print("samples per UI = ", self.samples_per_symbol)
+        
+        self.signal_downsampled = samplerate.resample(self.signal, 1/q, 'zero_order_hold')

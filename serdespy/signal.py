@@ -74,6 +74,28 @@ def nrz_input(samples_per_symbol, data_in, voltage_levels):
     
     return signal
 
+def pam4_input_BR(data_in, voltage_levels):
+      
+    signal = np.zeros(data_in.size)
+    
+    for i in range(data_in.size):
+        if (data_in[i]==0):
+            signal[i] = voltage_levels[0]
+        elif (data_in[i]==1):
+            signal[i] = voltage_levels[1]
+        elif (data_in[i]==2):
+            signal[i] = voltage_levels[2]
+        elif (data_in[i]==3):
+            signal[i] = voltage_levels[3]
+        else:
+            print('unexpected symbol in data_in')
+            return False
+    
+    return signal
+
+
+
+
 def pam4_input(samples_per_symbol, data_in, voltage_levels):
     
     """Genterates ideal, square, PAM-4 transmitter waveform from binary sequence
