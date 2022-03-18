@@ -16,7 +16,7 @@ samples_per_symbol=128
 #nyquist_f = 26.56e9
 
 #frequency is 5G 
-nyquist_f = 5e9
+nyquist_f = 26.56e9
 
 #%% Create data from PRQS
 data = sdp.prqs10(1)[:10000]
@@ -27,30 +27,37 @@ TX = sdp.Transmitter(data, voltage_levels, nyquist_f)
 time2=time.time()
 print('time to make input for 2M bit signal: ', time2-time1)
 
+sdp.simple_eye(TX.signal_BR, 3, 500, TX.UI/1, "TX Ideal Baud-Rate Eye Diagram")
+plt.savefig('TX1.png')
+
 #%%Oversample the TX waveform
 time1=time.time()
 TX.new_oversample(samples_per_symbol)
 time2=time.time()
 print('time to oversample: ', time2-time1)
 
+sdp.simple_eye(TX.signal_ideal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Ideal Eye Diagram, 128 Samples per UI")
+plt.savefig('TX2.png')
 #%%Add Jitter to TX waveform
 time1=time.time()
 TX.gaussian_jitter()
 time2=time.time()
 print('time to add jitter: ', time2-time1)
 
+sdp.simple_eye(TX.signal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Ideal Eye Diagram with Gaussian Jitter (stdev = 2.5% UI)")
+plt.savefig('TX3.png')
 #%%Apply Bandwith Limitation
-TX.tx_bandwidth(freq_bw=50e9)
+TX.tx_bandwidth(freq_bw=100e9)
 
 #%% Eye diagram of over-sampled TX wf
-sdp.simple_eye(TX.signal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Eye Diagram")
-
+sdp.simple_eye(TX.signal, samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Bandwidth-Limited Eye Diagram (-3dB frquency at 100GHz)")
+plt.savefig('TX4.png')
 #%%Downsample by factor of 16
 TX.new_downsample(16)
 
 #%%
 sdp.simple_eye(TX.signal_downsampled, TX.samples_per_symbol*3, 500, TX.UI/TX.samples_per_symbol, "TX Eye Diagram Downsampled to 8 samples per UI")
-
+plt.savefig('TX5.png')
 #%% Create a transmission line from s-params
 
 #% electrical loss parameters
@@ -152,11 +159,12 @@ h_channel, t_channel = sdp.freq2impulse(Hchannel,f);
 
 #bode plot of tline
 plt.figure()
-plt.title('Transmission Line Response')
+#plt.title('Transmission Line Response')
 plt.semilogx(1e-9*f,Hchannel_dB)
-plt.axvline(x = f_3dB )
+#plt.axvline(x = f_3dB, colo)
 plt.xlabel('Frequency [GHz]')
 plt.ylabel('Mag Response [dB]')
+plt.savefig('fake_bode.png')
 
 #%% resample impulse response so that timestep matches TX waveform
 
@@ -170,10 +178,11 @@ h_channel_resample = samplerate.resample(h_channel, t_channel[1]/(TX.UI/TX.sampl
 h = h_channel_resample[50:200]
 
 plt.figure()
-plt.title('Transmission Line Impulse Response')
+#plt.title('Transmission Line Impulse Response')
 plt.plot(1e9*t_channel_resample[:150],h)
 plt.xlabel('Time [ns]')
 plt.ylabel('Impulse Response')
+plt.savefig('fake_impulse.png')
 
 
 # %% Convolve TX wf with channel response and plot eye diagram

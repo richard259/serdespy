@@ -1,4 +1,8 @@
 ### serdespy
+
+Project in progress. 1st release will be made May 2022
+
+
 Python library for modelling SerDes. 
 Richard Barrie's undergraduate thesis project. University of Toronto, Engineering Science. ESC499 2021/2022. 
 Supervisors: Tony Chan Causone, Ming Yang

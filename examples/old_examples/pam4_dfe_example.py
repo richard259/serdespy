@@ -7,7 +7,7 @@ import scipy as sp
 import matplotlib.pyplot as plt
 
 #define network
-network = rf.Network('./DPO_4in_Meg7_THRU.s4p')
+network = rf.Network('../../touchstone/DPO_4in_Meg7_THRU.s4p')
 
 #set up port definition of network
 port_def = np.array([[0, 1],[2, 3]])
@@ -42,7 +42,7 @@ data_in = sdp.prqs10(1)
 data_in = data_in[:10000]
 
 #define voltage levels for 0 and 1 bits
-voltage_levels = np.array([-0.75, -0.25, 0.25, 0.75])
+voltage_levels = np.array([-3, -1, 1, 3])
 
 #convert data_in to time domain signal
 signal_in = sdp.pam4_input(steps_per_symbol, data_in, voltage_levels)
@@ -105,7 +105,7 @@ for xc in xcoords:
 
 #no FFE
 sig.reset()
-sdp.simple_eye(sig.signal, sig.steps_per_symbol*2, 1000, sig.t_step, "Eye Diagram")
+sdp.simple_eye(sig.signal, steps_per_symbol*2, 1000, sig.t_step, "Eye Diagram")
 
 #with FFE and computed weights
 sig.reset()

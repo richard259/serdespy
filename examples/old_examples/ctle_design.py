@@ -27,7 +27,7 @@ plt.show()
 #%%
 
 #define network
-network = rf.Network('./DPO_4in_Meg7_THRU.s4p')
+network = rf.Network('./touchstone/DPO_4in_Meg7_THRU.s4p')
 port_def = np.array([[0, 1],[2, 3]])
 H,f,h,t = sdp.four_port_to_diff(network,port_def)
 nyquist_f = 26.56e9
