@@ -3,6 +3,7 @@
 """
 
 import numpy as np 
+from .signal import *
 
 def prbs31(seed):
     """Genterates PRBS31 sequence
@@ -238,7 +239,7 @@ def prqs10(seed):
     pqrs = np.zeros(a.size,dtype = np.uint8)
     
     for i in range(a.size):
-        pqrs[i] = grey_code(c[:,i])
+        pqrs[i] = grey_encode(c[:,i])
     
     return pqrs
 
@@ -256,43 +257,11 @@ def prqs12(seed):
     for i in range(a.size):
         if (i%1e5 == 0):
             print("i =", i)
-        pqrs[i] = grey_code(c[:,i])
+        pqrs[i] = grey_encode(c[:,i])
     
     return pqrs
 
-def natural_code(x):
-    if (x[0] == 0):
-        if (x[1] == 0):
-            return 0
-        else:
-            return 1
-    else:
-        if (x[1] == 0):
-            return 2
-        else:
-            return 3
-    
-def grey_code(x):
-    if (x[0] == 0):
-        if (x[1] == 0):
-            return 0
-        else:
-            return 1
-    else:
-        if (x[1] == 0):
-            return 3
-        else:
-            return 2
-        
-def grey_decode(symbol):
-    if symbol == 0 :
-        return np.array([0,0],dtype = np.uint8)
-    if symbol == 1 :
-        return np.array([0,1],dtype = np.uint8)
-    if symbol == 2 :
-        return np.array([1,1],dtype = np.uint8)
-    if symbol == 3 :
-        return np.array([1,0],dtype = np.uint8)
+
 
 def prbs_checker(n, prbs, data):
     """Compares array with PRBS array to check bit errors

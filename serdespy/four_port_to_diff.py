@@ -3,12 +3,13 @@
 """
 
 from serdespy.chmodel import *
+from serdespy.resample import *
 import numpy as np
 import skrf as rf
 
 
-def four_port_to_diff(network, port_def):
-    """Genterates PRBS31 sequence
+def four_port_to_diff(network, port_def, source, load, option = 0, t_d = None):
+    """
 
     Parameters
     ----------
@@ -44,45 +45,62 @@ def four_port_to_diff(network, port_def):
         time vector
         
     """
-    #TODO: add options for termination and source impedance
-    
-    #define all in-out subnetworks and ABCD params for those networks
-    
-    
-    #thru networks
-    ch1_thru = rf.subnetwork(network, [port_def[0][0], port_def[0][1]])
-    ch1_thru_abcd = rf.s2a(ch1_thru.s)
-
-    ch2_thru = rf.subnetwork(network, [port_def[1][0], port_def[1][1]])
-    ch2_thru_abcd = rf.s2a(ch2_thru.s)
-    
-    
-    #xtalk networks
-    tx1_rx2 = rf.subnetwork(network, [port_def[0][0], port_def[1][1]])
-    tx1_rx2_abcd = rf.s2a(tx1_rx2.s)
-    
-    tx2_rx1 = rf.subnetwork(network, [port_def[0][1], port_def[1][0]])
-    tx2_rx1_abcd = rf.s2a(tx2_rx1.s)
-
-    #add termination to match charictaristic impedance of networks 12 and 34
-    term1 = admittance(1/ch1_thru.z0[:,0])
-    ch1_thru_abcd = series(ch1_thru_abcd,term1)
-
-    term2 = admittance(1/ch2_thru.z0[:,0])
-    ch2_thru_abcd = series(ch2_thru_abcd,term2)
-    
-    #get discrete transfer function for subnetworks, assuming 0 source impedance
-    H1_thru = 1/ch1_thru_abcd[:,0,0]
-    H2_thru = 1/ch2_thru_abcd[:,0,0]
-    H_tx1_rx2 = 1/tx1_rx2_abcd[:,0,0]
-    H_tx2_rx1 = 1/tx2_rx1_abcd[:,0,0]
-
-    #Get discrete transfer function of differential signal
-    H = (H1_thru + H2_thru - H_tx2_rx1 - H_tx1_rx2)/2
-    
-    #Get frequency response of differential transfer function
+    s_params = network.s
     f = network.f
-    h, t = freq2impulse(H,f)
-      
+    pts = f.size
     
+    
+    #change port def
+    #ports = np.array([1,3,2,4])
+    s_params_new = np.copy(s_params)
+    
+    s_params_new[:,1,:] = np.copy(s_params[:,2,:])
+    s_params_new[:,2,:] = np.copy(s_params[:,1,:])
+    
+    s_params_new[:,:,1] = np.copy(s_params[:,:,2])
+    s_params_new[:,:,2] = np.copy(s_params[:,:,1])
+    
+    s_params_new[:,1,2] = np.copy(s_params[:,1,2])
+    s_params_new[:,2,1] = np.copy(s_params[:,2,1])
+    
+    s_params_new[:,1,1] = np.copy(s_params[:,2,2])
+    s_params_new[:,2,2] = np.copy(s_params[:,1,1])
+    
+    
+    #
+    M = np.array([[1,-1,0,0],[0,0,1,-1],[1,1,0,0],[0,0,1,1]])
+    invM = np.transpose(M)
+    
+    smm_params = np.zeros((4,4,pts), dtype = complex)
+    
+    for i in range(pts):
+        smm_params[:,:,i] = (M@s_params_new[i,:,:]@invM)/2
+    
+    diff_s_params = smm_params[0:2,0:2,:]
+    
+    zl = load*np.ones((1,1,pts))
+    zs = source*np.ones((1,1,pts))
+    z0 = network.z0[0,0]*np.ones((1,1,pts))
+
+    #reflection coefficients
+    gammaL = (zl - z0) / (zl + z0)
+    gammaL[zl == np.inf] = 1 
+    
+    gammaS = (zs - z0) / (zs + z0)
+    gammaS[zs == np.inf] = 1
+    
+    gammaIn = (diff_s_params[0,0,:] + diff_s_params[0,1,:] * diff_s_params[1,0,:] * gammaL) / (1 - diff_s_params[1,1,:] * gammaL)
+    
+    H = diff_s_params[1,0,:] * (1 + gammaL) * (1 - gammaS) / (1 - diff_s_params[1,1,:] * gammaL) / (1 - gammaIn * gammaS) / 2
+    
+    H = H.reshape(pts,)
+
+    if option == 1:
+        H = H/H[0]
+    
+    if t_d != None:
+        H, f, h, t = zero_pad(H,f,t_d)
+    else:
+        h, t = freq2impulse(H,f)
+        
     return H, f, h, t

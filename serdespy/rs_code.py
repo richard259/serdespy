@@ -1,6 +1,6 @@
 from .reedsolo import RSCodec, ReedSolomonError
 import numpy as np
-
+from .signal import *
 
 #KP4 = RS (544, 514, 15)
 def RS_KP4():
@@ -10,17 +10,17 @@ def RS_KR4():
     #KR4 = RS(528,514)
     return RSCodec(nsym = 14, nsize = 528, c_exp = 10 )
 
-
-
 def bin_seq2int_seq(bin_seq):
     
-    n_words = int(np.ceil(bin_seq.size/10))
+    if bin_seq.size % 10 != 0:
+        print('Error: bin_seq must have length divisible by 10')
+        return False
+    
+    n_words = int(bin_seq.size/10)
 
     d_len = n_words * 10
 
-    words = np.hstack(( bin_seq, np.zeros(d_len - bin_seq.size,dtype = np.uint8)))
-
-    words = words.reshape((n_words,10))
+    words = bin_seq.reshape((n_words,10))
     
     #return words
 
@@ -80,3 +80,47 @@ def int2bin(x):
     r = r % 2
     y[9] = r // 1
     return y
+
+def rs_encode(bin_seq, encoder, pam4 = True):
+    
+    #format data into 10-bit words
+    data_in_int = bin_seq2int_seq(bin_seq)
+
+    #encode_data
+    data_in_enc_int = np.array(encoder.encode(data_in_int))
+
+    #convert back to binary sequence
+    data_in_enc = int_seq2bin_seq(data_in_enc_int)
+
+    if pam4:
+        #convert into pam4 symbols
+        len_symbols_enc = int(data_in_enc.size/2)
+    
+        data_in_enc_reshape = np.reshape(data_in_enc,(2,len_symbols_enc) , order = 'F')
+    
+        symbols_in_enc = np.zeros(len_symbols_enc,dtype = np.uint8)
+    
+        for i in range(len_symbols_enc):
+            symbols_in_enc[i] = grey_encode(data_in_enc_reshape[:,i])
+        
+        return symbols_in_enc
+    
+    return data_in_enc
+
+def rs_decode(symbols_out_enc, encoder, pam4 = True):
+    
+    if pam4:
+        data_out_enc = np.zeros(symbols_out_enc.size*2,dtype = np.uint8)
+        
+        for i in range(symbols_out_enc.size):
+            data_out_enc[i*2:i*2+2] = grey_decode(symbols_out_enc[i])
+    else:
+        data_out_enc = symbols_out_enc
+
+    data_out_enc_int = bin_seq2int_seq(data_out_enc)
+    
+    data_out_int = np.array(encoder.decode(data_out_enc_int)[0])
+    
+    data_out = int_seq2bin_seq(data_out_int)
+    
+    return data_out

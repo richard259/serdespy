@@ -6,18 +6,14 @@ import scipy as sp
 import matplotlib.pyplot as plt
 import samplerate
 
-
 class Transmitter:
+    """class to build model of time domain signal at transmitter 
     
-    """Class to represent time domain signal at transmitter
-
-
     """
     
     def __init__(self, data, voltage_levels, frequency):
-        
         """
-        Initialize transmitter, stores data and converts to array of symbols
+        Initialize transmitter, stores data and converts to baud-rate-sampled voltage waveform
         
         Parameters
         ----------
@@ -28,14 +24,16 @@ class Transmitter:
         voltage levels: array
             definition of voltages corresponding to symbols. 
         
-        frequency: int
-            2* symbol rate      
+        frequency: float
+            2* symbol rate
         
         """
         
+        #frequency and period
         self.f = frequency
         self.T = 1/self.f
         self.UI = self.T/2
+        
         
         self.voltage_levels = voltage_levels
         self.data = data
@@ -47,10 +45,11 @@ class Transmitter:
         
         #create ideal, baud-rate-sampled transmitter waveform
         if voltage_levels.size == 2:
-            self.signal_BR = nrz_input(1,data,voltage_levels)
+            self.signal_BR = nrz_input_BR(data,voltage_levels)
+        
         elif voltage_levels.size == 4:
-            #self.signal_BR = pam4_input(1,data,voltage_levels)
             self.signal_BR = pam4_input_BR(data,voltage_levels)
+        
         else:
             print ("Error: Voltage levels must have either size = 2 for NRZ signal or size = 4 for PAM4")
     
@@ -61,44 +60,28 @@ class Transmitter:
         Parameters
         ----------
         
-        tap_weights: list
+        tap_weights: array
+            tap weights for tx fir
+            last element should be 1, eg. for a 2-tap TX-FIR, with -0.1 and -0.2 coefficients, tap_weights = np.array([-0.1, -0.2, 1])
             
-        
         """
         self.FIR_enable = True
         
+        #do convolution to implement FIR
         self.signal_FIR_BR = sp.signal.fftconvolve(self.signal_BR,tap_weights, mode="same")
 
     def oversample(self, samples_per_symbol):
+        """oversample baud-rate signal to create ideal, square transmitter waveform
         
-        """Oversamples the baud-rate-sampled signal
-
         Parameters
         ----------
         
-        samples_per_symbol : int
-            number of samples per symbol
+        samples_per_symbol:
+            samples per UI of tx signal
             
-        
         """
-        self.samples_per_symbol = samples_per_symbol
         
-        #if we have FIR filtered data
-        if self.FIR_enable:
-            oversampled = np.zeros(len(self.signal_FIR_BR)*self.samples_per_symbol)
-            for i in range(self.n_symbols):
-                oversampled[i*self.samples_per_symbol:(i+1)*self.samples_per_symbol]=self.signal_FIR_BR[i]
         
-        #if we are not using FIR
-        else:
-            oversampled = np.zeros(len(self.signal_BR)*self.samples_per_symbol)
-            for i in range(self.n_symbols):
-                oversampled[i*self.samples_per_symbol:(i+1)*self.samples_per_symbol]=self.signal_BR[i]
-        
-        self.signal_ideal = oversampled
-
-    def new_oversample(self, samples_per_symbol):
-        #approach using samplerate
         self.samples_per_symbol = samples_per_symbol
         
         #if we have FIR filtered data
@@ -109,16 +92,16 @@ class Transmitter:
         else:
             oversampled = samplerate.resample(self.signal_BR,samples_per_symbol,converter_type='zero_order_hold')
         
+        #store in signal_ideal
         self.signal_ideal = oversampled
     
     def gaussian_jitter(self, stdev_div_UI = 0.025):
-        """Generates the TX waveform from ideal, square, self.signal_ideal with gaussian jitter
+        """Generates the TX waveform from ideal, square, self.signal_ideal with jitter
     
         Parameters
         ----------
         stdev_div_UI : float
-            multiply this by UI to get standard deviation of gaussian jitter values applied to ideal,square transmitter waveform
-    
+            standard deviation of jitter distribution as a pct of UI    
         """
     
         #generate random Gaussian distributed TX jitter values
@@ -149,40 +132,41 @@ class Transmitter:
         #calculate TX output waveform
         self.signal = np.copy(self.signal_ideal+non_ideal)
 
-    def tx_bandwidth(self,freq_bw = None, TF = None):
-        """Returns the bandwidth-limited version of output signal of FIR filter
-        
-        If this class is called without specifying freq_bw and/or TF, the default will be used
+    def tx_bandwidth(self, freq_bw = None, TF = None):
+        """Passes TX signal through an LTI system to model non-ideal TX driver
+        option to use custom transfer function, or use single-pole system with specified -3dB frequency 
 
         Parameters
         ----------
         freq_bw: float
             bandwidth frequency
 
-        TF: list
-            transfer function coefficients for bandwidth-limiting (Optio)
-        """
-
-        #freq_bw = 50e9
-
-        #TF = ([2*np.pi*freq_bw], [1,2*np.pi*freq_bw])
-
-        #UI = 1/(2*nyquist_f)
+        TF: list, optional
+            TF[0] : numerator coefficients for tranfer function
+            TF[1] : denominator coefficients for Transfer function
             
+        """
+        
+        #timestep
         dt = self.UI/self.samples_per_symbol
-
-        print(f'signal timestep is {dt}')
-
+        #print(f'signal timestep is {dt}')
+        
+        #max frequency for constructing discrete transfer function
         max_f = 1/dt
-
         max_w = max_f/(2*np.pi)
 
+
         ir_length = int(4/(freq_bw*dt))
-            
-        w, H = sp.signal.freqs([freq_bw/(2*np.pi)], [1,freq_bw/(2*np.pi)], np.linspace(0,0.5*max_w,ir_length*4))
+        
+        if TF != None:
+            w, H = sp.signal.freqs(TF[0], TF[1], np.linspace(0,0.5*max_w,ir_length*4))
+        
+        else:
+            w, H = sp.signal.freqs([freq_bw/(2*np.pi)], [1,freq_bw/(2*np.pi)], np.linspace(0,0.5*max_w,ir_length*4))
 
         f = np.pi*2*w
 
+        #plot frequency response of TF
         plt.figure()
         plt.semilogx(1e-9*f,20*np.log10(abs(H)), label = "TX BW limiting TF")
         plt.ylabel('Mag. Response [dB]')
@@ -190,46 +174,35 @@ class Transmitter:
         plt.title("TX BW Magnitude Bode Plot")
         plt.grid()
         plt.axvline(x=1e-9*freq_bw,color = 'grey')
-        #plt.axhline(x=-3,color = 'grey')
         plt.show()
 
-
+        #find impluse response
         h, t = freq2impulse(H,f)
-
-        print(f'impulse response timestep is {t[1]}')
-        
+        #print(f'impulse response timestep is {t[1]}')
         plt.figure()
         plt.plot(h[:ir_length])
         plt.title("TX BW Impulse Response")
         plt.show()
         
-        print("running convolution of signal with impulse response...")
+        #print("running convolution of signal with impulse response...")
         self.signal = sp.signal.fftconvolve(h[:ir_length], self.signal)
 
-
-    def downsample(self,q):
-        """Downsamples the input signal by a factor of q
+    def resample(self,samples_per_symbol):
+        """ resamples signal to new oversampling ratio
 
         Parameters
         ----------
-        q: int
-            downsample factor
+        samples_per_symbol: int
+            new number of samples per UI
         """
+        #TODO: check this
 
-        self.q = q
+        q = samples_per_symbol/self.samples_per_symbol
 
-        interpolation_time = np.linspace(0,len(self.signal),len(self.signal)//self.q,endpoint=False)
-        self.signal = np.interp(interpolation_time,np.arange(len(self.signal)),self.signal)
-
-    def new_downsample(self,q):
-        #approach using samplerate
-
-        if (self.samples_per_symbol % q != 0):
-            print(r'Must downsample UI with a divisor of {self.samples_per_symbol}')
-            return False
+        #if (self.samples_per_symbol % q != 0):
+        #    print(r'Must downsample UI with a divisor of {self.samples_per_symbol}')
+        #    return False
         
-        self.samples_per_symbol = int(self.samples_per_symbol/q)
+        self.samples_per_symbol = samples_per_symbol
         
-        print("samples per UI = ", self.samples_per_symbol)
-        
-        self.signal_downsampled = samplerate.resample(self.signal, 1/q, 'zero_order_hold')
+        self.signal = samplerate.resample(self.signal, q, 'zero_order_hold')
