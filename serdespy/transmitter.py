@@ -84,16 +84,19 @@ class Transmitter:
         
         self.samples_per_symbol = samples_per_symbol
         
+        
+        
+        #TODO: use np.repeat
+        
+        
         #if we have FIR filtered data
         if self.FIR_enable:
-            oversampled = samplerate.resample(self.signal_FIR_BR,samples_per_symbol,converter_type='zero_order_hold')
-        
+            #oversampled = samplerate.resample(self.signal_FIR_BR,samples_per_symbol,converter_type='zero_order_hold')
+            self.signal_ideal = np.repeat(self.signal_FIR_BR, samples_per_symbol)
         #if we are not using FIR
         else:
-            oversampled = samplerate.resample(self.signal_BR,samples_per_symbol,converter_type='zero_order_hold')
-        
-        #store in signal_ideal
-        self.signal_ideal = oversampled
+            #oversampled = samplerate.resample(self.signal_BR,samples_per_symbol,converter_type='zero_order_hold')
+            self.signal_ideal = np.repeat(self.signal_BR, samples_per_symbol)
     
     def gaussian_jitter(self, stdev_div_UI = 0.025):
         """Generates the TX waveform from ideal, square, self.signal_ideal with jitter
