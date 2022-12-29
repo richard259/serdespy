@@ -6,12 +6,12 @@ https://github.com/pypa/sampleproject
 
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
-#import pathlib
 
-#here = pathlib.Path(__file__).parent.resolve()
+import pathlib
+here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
-#long_description = (here / 'README.md').read_text(encoding='utf-8')
+long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 # Arguments marked as "Required" below must be included for upload to PyPI.
 # Fields marked as "Optional" may be commented out.
@@ -36,7 +36,7 @@ setup(
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/guides/single-sourcing-package-version/
-    version='0.dev2',  # Required
+    version='0.dev3',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -51,7 +51,7 @@ setup(
     #
     # This field corresponds to the "Description" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#description-optional
-    #long_description=long_description,  # Optional
+    long_description=long_description,  # Optional
 
     # Denotes that our long_description is in Markdown; valid values are
     # text/plain, text/x-rst, and text/markdown
@@ -99,13 +99,13 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate you support Python 3. These classifiers are *not*
         # checked by 'pip install'. See instead 'python_requires' below.
-        'Programming Language :: Python :: 3',
+        #'Programming Language :: Python :: 3',
         #'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        #'Programming Language :: Python :: 3.8',
-        #'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         #"Programming Language :: Python :: 3.10",
-        'Programming Language :: Python :: 3 :: Only',
+        #'Programming Language :: Python :: 3 :: Only',
     ],
 
     # This field adds keywords for your project which will appear on the
@@ -114,7 +114,7 @@ setup(
     # Note that this is a list of additional keywords, separated
     # by commas, to be used to assist searching for the distribution in a
     # larger catalog.
-    keywords='sample, setuptools, development',  # Optional
+    #keywords='sample, setuptools, development',  # Optional
 
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
@@ -149,7 +149,6 @@ setup(
         'scipy',
         'matplotlib',
         'scikit-rf',
-        'samplerate',
         ]
 
 
