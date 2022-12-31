@@ -65,12 +65,46 @@ def admittance (y):
     s[:,1,1] = np.ones(l)
     return s
 
-def series(s1,s2):
-    #Series combination of two 2-port networks, s1 followed by s2
-    #s1, and s2 are arrays containing the A,B,C,D matrix parameters of size 
-    #l*2*2 where s[n] = is the 2*2 paramater matrix
-    #for the network at corresponding frequency f[n]
-    return np.matmul(s1,s2)
+def shunt_cap(c,w):
+    
+    #for 2-port network with shunt capacitance c specified at complex frequencies w [rad/s]
+    #returns array s of size l*2*2 where s[n] = is the 2*2 paramater matrix
+    #for the network at frequency f[n]
+    
+    l = w.size
+    s = np.zeros((l,2,2),dtype=np.complex_)
+    s[:,0,0] = np.ones(l)
+    s[:,0,1] = np.zeros(l)  
+    s[:,1,0] = (c*w)
+    s[:,1,1] = np.ones(l)
+    return s
+
+
+def series_cap(c,w):
+    
+    #for 2-port network with series capacitance c specified at complex frequencies w [rad/s]
+    #returns array s of size l*2*2 where s[n] = is the 2*2 paramater matrix
+    #for the network at frequency f[n]
+
+    l = c.size
+    s = np.zeros((l,2,2),dtype=np.complex_)
+    s[:,0,0] = np.ones(l)
+    s[:,0,1] = 1/(c*w)
+    s[:,1,0] = np.zeros(l)
+    s[:,1,1] = np.ones(l)
+    return s
+
+def series(networks):
+    #Series combination of 2-port networks. Networks is a numpy array 
+    # containing the A,B,C,D matrix parameters of networks to be combined 
+    # in series
+
+    out = np.matmul(networks[0],networks[1])
+    
+    for i in range (networks.shape[0]-2):
+        out = np.matmul(out,networks[i+2])
+        
+    return out
 
 
 def freq2impulse(H, f):

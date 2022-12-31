@@ -456,5 +456,129 @@ def shift_signal(signal, samples_per_symbol):
     
     return np.copy(signal[shift+1:])
 
+def lms_equalizer(y, mu, N, w_ffe, FFE_pre, w_dfe, voltage_levels,
+        alpha=None, reference=None, update_rate=1):
+    """optimizes DFE and/or FFE weights for a particular signal, by using a
+    Least-Mean Squares (LMS) objective function.
 
+    Parameters
+    ----------
+    y: array
+        signal to be equalized
+    mu: number
+        learning rate factor for the LMS update
+    N: int
+        length of `y` to be equalized
+    w_ffe: array
+        initial FFE weights, starting fromt the last pre-tap (oldest) to the
+        last post-tap (future-most)
+    FFE_pre: int
+        number of pre-tap weights in FFE. The number of post-taps are implied
+        based on len(w_ffe) and FFE_pre.
+    w_dfe: array
+        initial DFE weights, starting from the first pre-tap.
+    voltage_levels: array
+        discrete voltage levels to use in DFE optimization
+    alpha: array (optional)
+        used to fix the first `len(alpha)` weights in `w_dfe`, starting from the
+        first pre-tap. these weights will not be optimized and will stay constant
+        throughout LMS updates.
+    reference: array (optional)
+        if provided, LMS will attempt to optimize according to the error between
+        the signal and reference, rather than estimating it based on the cloest
+        voltage level. `len(reference)` may be less than `len(y)`, in which case
+        only the first `len(reference)` updates will be optimized in this manner.
+    update_rate: int (optional)
+        LMS update will only be performed on each `update_rate`-th iteration.
+        However, the equalized signal will still be computed on the skipped iterations.
+
+    Returns
+    -------
+    w_ffe: array
+        optimized FFE weights
+    w_dfe: array
+        optimized DFE weights
+    v_ffe: array
+        signal computed after FFE optimization
+    v_dfe: array
+        signal computed after FFE and DFE optimization
+    z: array
+        signal quantized from v_dfe
+    e: array
+        evaluated error used for LMS optimization
+    """
+    if w_ffe is None and w_dfe is None:
+        print("warning: training nothing since both w_ffe and w_dfe were None")
+
+    is_cooptimizing = w_ffe is not None and w_dfe is not None
+    if (not is_cooptimizing) and (alpha is not None):
+        print("warning: alpha is set but we're not co-optimizing")
+
+    voltage_levels = voltage_levels.copy()
+
+    if w_ffe is not None:
+        w_ffe = np.array(w_ffe)
+        FFE_taps = len(w_ffe)
+        FFE_post = FFE_taps - FFE_pre - 1
+    else:
+        FFE_taps = 0
+        FFE_post = 0
+
+    if w_dfe is not None:
+        w_dfe = np.array(w_dfe)
+        DFE_taps = len(w_dfe)
+    else:
+        DFE_taps = 0
+
+    e = np.zeros(N)
+    v_dfe = np.zeros(N)
+    v_ffe = np.zeros(N)
+    z = np.zeros(N)
+
+    min_delay = max(FFE_post, DFE_taps)
+    for k in range(min_delay, N - FFE_pre):
+        y_k = y[k - FFE_post:k + FFE_pre + 1][::-1]
+        z_k = z[k - DFE_taps:k][::-1]
+
+        # alpha takes over the first len(alpha) terms of w_dfe
+        if is_cooptimizing and alpha is not None:
+            w_dfe[:len(alpha)] = alpha
+
+        if w_ffe is not None:
+            v_ffe[k] = np.dot(y_k, w_ffe)
+        else:
+            v_ffe[k] = y_k[0]
+
+        if w_dfe is not None:
+            v_dfe[k] = v_ffe[k] - np.dot(z_k, w_dfe)
+        else:
+            v_dfe[k] = v_ffe[k]
+
+        z[k] = _quantize(v_dfe[k], voltage_levels)
+        if reference is None or k >= len(reference):
+            y_ref = z[k]
+        else:
+            y_ref = reference[k]
+
+        e[k] = v_dfe[k] - y_ref
+        if (k - min_delay) % update_rate == 0:
+            #print(k)
+            if w_ffe is not None:
+                w_ffe -= mu * e[k] * y_k
+            if w_dfe is not None:
+                w_dfe += mu * e[k] * z_k
+
+    if is_cooptimizing and alpha is not None:
+        w_dfe[:len(alpha)] = alpha
+
+    end = N - FFE_pre
+    return w_ffe, w_dfe,\
+            v_ffe[min_delay:end],\
+            v_dfe[min_delay:end],\
+            z[min_delay:end],\
+            e[min_delay:end]
+
+def _quantize(signal, voltage_levels):
+    idx = np.abs(voltage_levels - signal).argmin()
+    return voltage_levels[idx]
 

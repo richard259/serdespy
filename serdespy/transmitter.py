@@ -209,3 +209,42 @@ class Transmitter:
         self.samples_per_symbol = samples_per_symbol
         
         self.signal = samplerate.resample(self.signal, q, 'zero_order_hold')
+        
+        
+def gaussian_jitter(signal_ideal, UI,n_symbols,samples_per_symbol,stdev):
+    """Generates the TX waveform from ideal, square, self.signal_ideal with jitter
+
+    Parameters
+    ----------
+    stdev_div_UI : float
+        standard deviation of jitter distribution as a pct of UI    
+    """
+
+    #generate random Gaussian distributed TX jitter values
+    epsilon = np.random.normal(0,stdev,n_symbols)
+    
+    epsilon.clip(UI)
+    epsilon[0]=0
+
+    #calculate time duration of each sample
+    sample_time = UI/samples_per_symbol
+
+    #initializes non_ideal (jitter) array
+    non_ideal = np.zeros_like(signal_ideal)
+
+    #populates non_ideal array to create TX jitter waveform
+    for symbol_index,symbol_epsilon in enumerate(epsilon):
+        epsilon_duration = int(round(symbol_epsilon/sample_time))
+        start = int(symbol_index*samples_per_symbol)
+        end = int(start+epsilon_duration)
+        flip=1
+        if symbol_index==0:
+            continue
+        if symbol_epsilon<0:
+            start,end=end,start
+            flip=-1
+        non_ideal[start:end]=flip*(signal_ideal[symbol_index*samples_per_symbol-samples_per_symbol]-signal_ideal[symbol_index*samples_per_symbol])
+    
+    #calculate TX output waveform
+    signal = np.copy(signal_ideal+non_ideal)
+    return signal

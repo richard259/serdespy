@@ -3,7 +3,6 @@
 """
 
 from serdespy.chmodel import *
-from serdespy.resample import *
 import numpy as np
 import skrf as rf
 
