@@ -37,29 +37,7 @@ Python 3.7+ required
 `pip install serdespy`
 
 ## Description
-
-/serdespy
 - python module containing functions and classes for SerDes Modelling
-
-/examples 
-- example of serdes model and simulation using serdespy package
-
-/touchstone
-- 4-port touchstone files from https://www.ieee802.org/3/ck/public/tools/index.html
-
-/test_signals
-- pre-generated PRBS signals saved in numpy arrays
-
-## Project Status
-Project is in progress
-Feel free raise an issue or make a pull request with an addition!
-
-## Future Work
-Planned additions to the package include:
-- clock and data recovery model
-- multiprocessing for long BER test simulations (with FEC)
-- statistical modelling
-
 
 ## Contact
 richard.barrie@mail.utoronto.ca
