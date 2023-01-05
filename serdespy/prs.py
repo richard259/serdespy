@@ -61,8 +61,8 @@ def prbs24(seed):
         code = ((code<<1) | next_bit) & 0xffffff
         seq[i] = next_bit
         i = i+1
-        if (i%1e6 ==0):
-            print("i =", i)
+        #if (i%1e6 ==0):
+        #    print("i =", i)
         if (code==seed):
             sequence_complete = True
             break
@@ -89,8 +89,8 @@ def prbs22(seed):
         code = ((code<<1) | next_bit) & 0x3fffff
         seq[i] = next_bit
         i = i+1
-        if (i%1e6 ==0):
-            print("i =", i)
+        #if (i%1e6 ==0):
+        #    print("i =", i)
         if (code==seed):
             sequence_complete = True
             break

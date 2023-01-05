@@ -1,4 +1,4 @@
-"""Functions for plotting eye diagram
+"""Functions for plotting eye diagrams
 
 """
 import numpy as np
@@ -24,6 +24,12 @@ def simple_eye(signal, window_len, ntraces, tstep, title, res=600, linewidth=0.1
     
     title: 
         title of the plot
+        
+    res: int, optional
+        DPI resolution of the figure
+        
+    linewidth: float, optional
+        width of lines in figure
     """
 
     signal_crop = signal[0:ntraces*window_len]
@@ -42,7 +48,8 @@ def simple_eye(signal, window_len, ntraces, tstep, title, res=600, linewidth=0.1
 
 
 def rx_jitter_eye(signal, window_len, ntraces, n_symbols, tstep, title,  stdev, res=600, linewidth=0.15,):
-    """Genterates simple eye diagram
+    """Genterates eye diagram with jitter introduved by splitting traces and applying 
+    horizontal shift with gaussian distribution
 
     Parameters
     ----------
@@ -60,6 +67,15 @@ def rx_jitter_eye(signal, window_len, ntraces, n_symbols, tstep, title,  stdev, 
     
     title: 
         title of the plot
+        
+    stdev: float
+        RMS value of gaussian jitter
+    
+    res: int, optional
+        DPI resolution of the figure
+        
+    linewidth: float, optional
+        width of lines in figure
     """
     epsilon = np.random.normal(0,stdev,n_symbols)
     

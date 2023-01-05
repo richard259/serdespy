@@ -216,6 +216,21 @@ def gaussian_jitter(signal_ideal, UI,n_symbols,samples_per_symbol,stdev):
 
     Parameters
     ----------
+    signal_ideal: array
+        ideal,square transmitter voltage waveform
+    
+    UI: float
+        length of one unit interval in seconds
+    
+    n_symbols: int
+        number of symbols in signal_ideal
+        
+    samples_per_symbol: int
+        number of samples in signal_ideal corresponding to one UI
+        
+    stdev:
+        standard deviation of gaussian jitter in seconds
+    
     stdev_div_UI : float
         standard deviation of jitter distribution as a pct of UI    
     """
