@@ -149,45 +149,50 @@ class Transmitter:
             TF[1] : denominator coefficients for Transfer function
             
         """
-        
-        #timestep
+
+        #Timestep
         dt = self.UI/self.samples_per_symbol
-        #print(f'signal timestep is {dt}')
-        
+
         #max frequency for constructing discrete transfer function
         max_f = 1/dt
-        max_w = max_f/(2*np.pi)
 
+        #max_f in rad/s
+        max_w = max_f*2*np.pi
 
+        #heuristic to get a reasonable impulse response length
         ir_length = int(4/(freq_bw*dt))
-        
+
+        #Calculate discrete transfer function
         if TF != None:
             w, H = sp.signal.freqs(TF[0], TF[1], np.linspace(0,0.5*max_w,ir_length*4))
-        
         else:
-            w, H = sp.signal.freqs([freq_bw/(2*np.pi)], [1,freq_bw/(2*np.pi)], np.linspace(0,0.5*max_w,ir_length*4))
+            #calculate discrete transfer function of low-pass filter with pole at freq_bw
+            w, H = sp.signal.freqs([freq_bw*(2*np.pi)], [1,freq_bw*(2*np.pi)], np.linspace(0,0.5*max_w,ir_length*4))
 
-        f = np.pi*2*w
+        #frequency vector for discrete transfer function in hz
+        f = w/(2*np.pi)
 
-        #plot frequency response of TF
-        plt.figure()
-        plt.semilogx(1e-9*f,20*np.log10(abs(H)), label = "TX BW limiting TF")
+        #plot frequency response of the low-pass filter
+        plt.figure(dpi=800)
+        plt.semilogx(1e-9*f,20*np.log10(abs(H)))
         plt.ylabel('Mag. Response [dB]')
         plt.xlabel('Frequency [GHz]')
-        plt.title("TX BW Magnitude Bode Plot")
+        plt.title("Low Pass Filter with {}MHz Cutoff Magnitude Bode Plot".format(round(freq_bw*1e-6)))
         plt.grid()
         plt.axvline(x=1e-9*freq_bw,color = 'grey')
         plt.show()
 
-        #find impluse response
-        h, t = freq2impulse(H,f)
-        #print(f'impulse response timestep is {t[1]}')
-        plt.figure()
-        plt.plot(h[:ir_length])
-        plt.title("TX BW Impulse Response")
-        plt.show()
-        
-        #print("running convolution of signal with impulse response...")
+        #find impluse response of low-pass filter
+        h, t = sdp.freq2impulse(H,f)
+
+        #plot impulse response of the low-pass filter 
+        # plt.figure(dpi=800)
+        # plt.plot(t[:ir_length]*1e12,h[:ir_length])
+        # plt.title("Low Pass Filter with {}MHz Cutoff Impulse Response".format(round(freq_bw*1e-6)))
+        # plt.xlabel('Time [ps]')
+        # plt.ylabel('[V]')
+        # plt.show()
+
         self.signal = sp.signal.fftconvolve(h[:ir_length], self.signal)
 
     def resample(self,samples_per_symbol):
