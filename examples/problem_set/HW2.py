@@ -75,7 +75,7 @@ FER = total_frame_error/total_frame
 
 print('KR4 - pre-FEC BER: %2f, post-FEC BER: %2f FER: %2f' % (BER_pre_FEC,BER_post_FEC,FER))
 
-#%% KR4 FEC
+#%% KP4 FEC
 KP4_encoder = sdp.RS_KP4()
 
 N = 544
